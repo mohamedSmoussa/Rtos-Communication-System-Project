@@ -1,79 +1,90 @@
-# Rtos-Communication-System-Project
-Packet transmission system with Stop-and-Wait &amp; Go-Back-N protocols, RTOS-based design, throughput &amp; stability tested.
+📡 Packet Transmission System with Stop-and-Wait & Go-Back-N Protocols (RTOS-Based)
+This project implements a packet transmission system using two classic protocols — Stop-and-Wait (S&W) and Go-Back-N (GBN) — designed and tested on an RTOS (FreeRTOS) environment.
+
+💡 System Architecture
+mathematica
+Copy
+Edit
 2 Senders → Switch → 2 Receivers
-(Built using FreeRTOS primitives)
+Built using FreeRTOS primitives to ensure concurrency, timing precision, and robust resource management.
 
-Key RTOS Functions Used:
+⚙️ RTOS Primitives Used
+xTaskCreate() — Creates sender, receiver, and switch tasks.
 
-xTaskCreate() - Creates sender/receiver/switch tasks
+xQueueCreate() — Packet and ACK queues.
 
-xQueueCreate() - Packet and ACK queues
+xTimerCreate() — Retransmission timers.
 
-xTimerCreate() - Retransmission timers
+xSemaphoreCreateMutex() — Protects shared data and statistics counters.
 
-xSemaphoreCreateMutex() - Protects shared data
-
-⏳ Stop-and-Wait (RTOS Implementation)
-Core Functions:
-
+⏳ Stop-and-Wait Protocol (RTOS Implementation)
+Sender
 c
-// Sender
-xTimerStart(timer, TOUT_MS);  // Start timeout
-xQueueSend(switchQueue, pkt); // Transmit
-xQueueReceive(ackQueue);      // Wait ACK
-
-// Receiver 
-xQueueReceive(receiverQueue); // Get packet
-xQueueSend(ackQueue, ack);    // Send ACK
-RTOS Features:
-
+Copy
+Edit
+xTimerStart(timer, TOUT_MS);         // Start retransmission timeout
+xQueueSend(switchQueue, pkt);        // Transmit packet to switch
+xQueueReceive(ackQueue);             // Wait for ACK
+Receiver
+c
+Copy
+Edit
+xQueueReceive(receiverQueue);        // Receive packet
+xQueueSend(ackQueue, ack);           // Send ACK
+RTOS Features
 Single timer per sender
 
-Blocking queue waits
+Blocking queue waits simplify design
 
-Mutex-protected stats counters
+Mutex-protected counters for accurate performance stats
 
-🔄 Go-Back-N (RTOS Implementation)
-Core Functions:
-
+🔄 Go-Back-N Protocol (RTOS Implementation)
+Sender
 c
-// Sender
-for(i=0; i<N; i++) {
-  xQueueSend(switchQueue, pkt[i]); // Window transmit
-  xTimerStart(timers[i], TOUT_MS); // Per-packet timer
+Copy
+Edit
+for (i = 0; i < N; i++) {
+    xQueueSend(switchQueue, pkt[i]);    // Send window of packets
+    xTimerStart(timers[i], TOUT_MS);    // Start timer per packet
 }
-
-// ACK Handler
-xQueueReceive(ackQueue); 
-while(base <= ack.seq) {           // Slide window
-  xTimerStop(timers[base%N]); 
-  base++;
+ACK Handler
+c
+Copy
+Edit
+xQueueReceive(ackQueue);
+while (base <= ack.seq) {
+    xTimerStop(timers[base % N]);       // Stop acknowledged packet timers
+    base++;                             // Slide window forward
 }
-RTOS Features:
+RTOS Features
+Array of timers (size = N)
 
-Array of timers (size=N)
+Non-blocking queue checks for fast handling
 
-Non-blocking queue checks
-
-Atomic window management
+Atomic window management ensures correctness
 
 📊 Performance Comparison (RTOS Impact)
 Metric	S&W (RTOS)	GBN (RTOS)
 Task Count	5 tasks	5 tasks + N timers
-Memory Use	Low	Higher (window buffers)
+Memory Use	Low	Higher (buffers & timers)
 Context Switches	Frequent (per-packet)	Optimized (batched)
-Throughput Advantage:
 
-GBN achieves +46% higher throughput in RTOS due to:
+🚀 Throughput Advantage
+GBN achieves ~46% higher throughput compared to S&W.
 
-xQueueSend batching (window of packets)
+Advantages:
 
-Reduced xTimerStart calls (per-window vs per-packet)
+Batched xQueueSend() via windowing
 
-RTOS Selection Rationale:
+Fewer xTimerStart() calls (per window instead of per packet)
 
-FreeRTOS provides precise timing control via vTaskDelay()
+⚖️ Why FreeRTOS?
+Precise timing control with vTaskDelay() and timers
 
-Queue system naturally models network channels
+Queue system naturally models network links and buffers
 
-Mutexes prevent race conditions in stats collection
+Mutexes avoid race conditions in statistics and shared resources
+
+✅ Conclusion
+This system demonstrates how RTOS primitives can simplify and optimize protocol implementation, achieving both correctness and high throughput — especially when scaling to window-based protocols like Go-Back-N.
+
